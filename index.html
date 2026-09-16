@@ -144,20 +144,30 @@ $('#favBtn').onclick=()=>{const i=favorites.findIndex(x=>samePlace(x,currentPlac
 let timer; $('#searchBtn').onclick=()=>{ $('#search').classList.add('open'); setTimeout(()=>$('#query').focus(),100); }; $('#closeSearch').onclick=()=>$('#search').classList.remove('open');
 $('#query').addEventListener('input',()=>{clearTimeout(timer); const q=$('#query').value.trim(); if(q.length<2){$('#results').innerHTML='';return;} timer=setTimeout(async()=>{const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=8&language=de&format=json'); const j=await r.json(); $('#results').innerHTML=(j.results||[]).map((x,i)=>`<button class="result" data-i="${i}"><b>${x.name}</b><small>${[x.admin1,x.country].filter(Boolean).join(', ')}</small></button>`).join('')||'<div class="loading">Kein Ort gefunden</div>'; [...document.querySelectorAll('.result')].forEach((b,i)=>b.onclick=()=>{const x=j.results[i]; $('#search').classList.remove('open'); $('#query').value=''; $('#results').innerHTML=''; loadWeather({name:x.name,latitude:x.latitude,longitude:x.longitude,timezone:x.timezone,country:x.country});});},250);});
 async function reverseGeocode(latitude,longitude){
+  // Zwei Dienste + saubere Fallbacks, damit auf dem iPhone möglichst immer ein Ortsname erscheint.
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14&addressdetails=1&accept-language=de`);
+    if(r.ok){
+      const j=await r.json(), a=j.address||{};
+      const city=a.city||a.town||a.village||a.municipality||a.island||a.county||'';
+      const country=a.country||'';
+      if(city) return {name:[city,country].filter(Boolean).join(', '),country};
+    }
+  }catch(e){console.warn('Nominatim Reverse-Geocoding fehlgeschlagen',e)}
   try{
     const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=de`);
     if(r.ok){
       const j=await r.json();
-      const city=j.city||j.locality||j.principalSubdivision||'';
+      const city=j.city||j.locality||j.localityInfo?.administrative?.find(x=>x.adminLevel>=6)?.name||j.principalSubdivision||'';
       const country=j.countryName||'';
       if(city) return {name:[city,country].filter(Boolean).join(', '),country};
     }
-  }catch(e){console.warn('Reverse-Geocoding fehlgeschlagen',e)}
-  return {name:'Mein Standort',country:''};
+  }catch(e){console.warn('BigDataCloud Reverse-Geocoding fehlgeschlagen',e)}
+  return {name:`Standort ${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,country:''};
 }
 $('#locBtn').onclick=()=>{if(!navigator.geolocation){alert('Standort wird von diesem Browser nicht unterstützt.');return;} $('#updated').textContent='Standort wird bestimmt …'; navigator.geolocation.getCurrentPosition(async pos=>{const place=await reverseGeocode(pos.coords.latitude,pos.coords.longitude); const p={name:place.name,latitude:pos.coords.latitude,longitude:pos.coords.longitude,country:place.country}; loadWeather(p);},()=>{$('#updated').textContent='Standortzugriff nicht erlaubt';},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});};
 loadWeather().catch(e=>{console.error(e);$('#condition').textContent='Keine Verbindung';});
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').then(r=>r.update());
 </script>
 </body>
 </html>
