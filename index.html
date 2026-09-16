@@ -32,7 +32,7 @@
     .confidence{margin-top:18px;padding-top:15px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}.confidence strong{font-size:14px}.confidence span{font-size:12px;color:var(--muted)}.badge{flex:0 0 auto;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;background:rgba(126,224,195,.12);color:var(--accent2)}.badge.medium{background:rgba(255,204,112,.12);color:var(--accent)}.badge.low{background:rgba(255,141,141,.12);color:var(--danger)}
     .section{margin-top:18px}.section-head{display:flex;justify-content:space-between;align-items:center;margin:0 2px 9px}.section-head h2{font-size:14px;margin:0;letter-spacing:.2px}.section-head small{color:var(--muted)}
     .strip{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:3px}.strip::-webkit-scrollbar{display:none}.hour{flex:0 0 82px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 8px;text-align:center}.hour b{font-size:12px}.hour .ico{font-size:26px;margin:9px 0}.hour .t{font-size:18px;font-weight:800}.hour .rain{font-size:11px;color:#a9cfee;min-height:14px;margin-top:5px}.hour .agree{font-size:10px;color:var(--muted);margin-top:4px}
-    .days{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:5px 14px}.day{display:grid;grid-template-columns:58px 34px 1fr auto;align-items:center;gap:8px;min-height:54px;border-top:1px solid var(--line)}.day:first-child{border-top:0}.day .ico{font-size:22px}.day .rain{color:#a9cfee;font-size:11px}.day .temps{font-weight:750;white-space:nowrap}.day{grid-template-columns:52px 30px 1fr auto}.day-model{grid-column:1/-1;color:var(--muted);font-size:10px;padding:0 0 9px;line-height:1.35}.day-model b{color:var(--text);font-weight:650}.reason{margin-top:5px;font-size:11px;color:var(--muted);line-height:1.35}.reason b{color:var(--text)}
+    .rain-now{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:15px;overflow:hidden}.rain-now-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.rain-now-head strong{font-size:16px}.rain-now-head small{display:block;color:var(--muted);margin-top:4px;line-height:1.35}.rain-bars{height:126px;display:flex;align-items:flex-end;gap:4px;margin-top:15px;padding-top:8px;border-bottom:1px solid var(--line)}.rain-bar{flex:1;min-width:0;border-radius:5px 5px 1px 1px;background:linear-gradient(180deg,#ff8d8d,#ffcc70 55%,#7ee0c3);opacity:.92}.rain-bar.dry{height:3px!important;background:#3a475b;opacity:.75}.rain-axis{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:7px}.rain-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:11px;color:var(--muted);font-size:10px}.rain-legend b{color:var(--text)}.rain-caveat{margin-top:9px;color:var(--muted);font-size:10px;line-height:1.4}.days{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:5px 14px}.day{display:grid;grid-template-columns:58px 34px 1fr auto;align-items:center;gap:8px;min-height:54px;border-top:1px solid var(--line)}.day:first-child{border-top:0}.day .ico{font-size:22px}.day .rain{color:#a9cfee;font-size:11px}.day .temps{font-weight:750;white-space:nowrap}.day{grid-template-columns:52px 30px 1fr auto}.day-model{grid-column:1/-1;color:var(--muted);font-size:10px;padding:0 0 9px;line-height:1.35}.day-model b{color:var(--text);font-weight:650}.reason{margin-top:5px;font-size:11px;color:var(--muted);line-height:1.35}.reason b{color:var(--text)}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:15px;min-height:105px}.metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}.metric .value{font-size:28px;font-weight:800;margin-top:15px}.metric small{display:block;color:var(--muted);margin-top:4px}
     .model-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;overflow:hidden}.model-summary{padding:15px}.model-summary p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45}.model-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:12px 15px;border-top:1px solid var(--line);align-items:center}.model-name{font-weight:700}.model-row small{display:block;color:var(--muted);margin-top:2px}.model-rain{font-size:12px;color:#a9cfee}.model-temp{font-weight:800}.model-error{color:var(--muted);font-size:12px}
     .notice{background:#332b22;border:1px solid rgba(255,204,112,.18);border-radius:20px;padding:14px 15px}.notice strong{display:block;margin-bottom:4px}.notice small{color:#c9b999;line-height:1.4}
@@ -51,7 +51,7 @@
     </div>
     <button class="iconbtn" id="refreshBtn" aria-label="Wetter aktualisieren" title="Wetter aktualisieren">↻</button>
   </div>
-  <div class="version">Version 1.1</div>
+  <div class="version">Version 1.2</div>
 
   <section class="hero">
     <div class="hero-top"><div><div class="hero-temp" id="temp">--°</div><div class="condition" id="condition">Lädt …</div></div><div class="hero-icon" id="heroIcon">◌</div></div>
@@ -60,6 +60,8 @@
   </section>
 
   <section class="section" id="noticeSection" style="display:none"><div class="notice"><strong id="noticeTitle"></strong><small id="noticeText"></small></div></section>
+
+  <section class="section"><div class="section-head"><h2>Niederschlag · nächste 4 Stunden</h2><small>Mehrmodell</small></div><div class="rain-now"><div class="rain-now-head"><div><strong id="rainNowTitle">Wird berechnet …</strong><small id="rainNowText">ECMWF, ICON und GFS werden verglichen.</small></div><div class="badge" id="rainNowBadge">…</div></div><div class="rain-bars" id="rainBars"></div><div class="rain-axis" id="rainAxis"></div><div class="rain-legend"><span><b>Höhe</b> = erwartete Intensität</span><span><b>Zeitfenster</b> statt minutengenauer Zusage</span></div><div class="rain-caveat">Modellprognose – noch kein Radar/Nowcast. Die Balken zeigen Stundenwerte und werden nicht künstlich auf einzelne Minuten heruntergerechnet.</div></div></section>
 
   <section class="section"><div class="section-head"><h2>Nächste Stunden</h2><small>% = Regenwahrscheinlichkeit</small></div><div class="strip" id="hourly"><div class="empty">Lädt …</div></div></section>
 
@@ -79,7 +81,7 @@
 <div class="overlay" id="favOverlay"><div class="sheet"><div class="sheet-head"><h2>Favoriten verwalten</h2><button class="closebtn" data-close="favOverlay">×</button></div><p class="sheet-note">Mit ↑ und ↓ legst du deine eigene Reihenfolge fest. Die Liste wird nur auf diesem Gerät gespeichert.</p><div class="fav-list" id="favList"></div></div></div>
 
 <script>
-const VERSION='0.9';
+const VERSION='1.2';
 const $=s=>document.querySelector(s);
 const weatherText=c=>({0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'Bewölkt',45:'Nebel',48:'Reifnebel',51:'Leichter Nieselregen',53:'Nieselregen',55:'Starker Nieselregen',56:'Gefrierender Nieselregen',57:'Starker gefrierender Nieselregen',61:'Leichter Regen',63:'Regen',65:'Starker Regen',66:'Gefrierender Regen',67:'Starker gefrierender Regen',71:'Leichter Schneefall',73:'Schneefall',75:'Starker Schneefall',77:'Schneegriesel',80:'Leichte Regenschauer',81:'Regenschauer',82:'Starke Regenschauer',85:'Leichte Schneeschauer',86:'Starke Schneeschauer',95:'Gewitter',96:'Gewitter mit Hagel',99:'Starkes Gewitter mit Hagel'}[c]||'Wetter');
 const weatherIcon=(c,isDay=1)=>c===0?(isDay?'☀️':'🌙'):c<=2?(isDay?'🌤️':'☁️'):c===3?'☁️':c<60?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?(c<83?'🌦️':'🌨️'):'⛈️';
@@ -184,6 +186,29 @@ function dailyModelSummary(dateStr){
   return{rows,info};
 }
 function confidenceInfo(score){if(score===null)return{label:'Nicht verfügbar',cls:'medium'};if(score>=75)return{label:'Hohe Einigkeit',cls:''};if(score>=50)return{label:'Mittlere Einigkeit',cls:'medium'};return{label:'Geringe Einigkeit',cls:'low'};}
+function renderRainNow(d){
+  const nowIndex=Math.max(0,d.hourly.time.findIndex(t=>t>=d.current.time));
+  const slots=[];
+  for(let i=nowIndex;i<Math.min(nowIndex+4,d.hourly.time.length);i++){
+    const time=d.hourly.time[i], base=Number(d.hourly.precipitation[i]||0), prob=Number(d.hourly.precipitation_probability[i]||0);
+    const vals=modelData.filter(m=>m.ok).map(m=>modelValue(m,time,'precipitation')).filter(Number.isFinite);
+    const wet=vals.filter(v=>v>=.1).length;
+    const sorted=[...vals].sort((a,b)=>a-b); const med=sorted.length?sorted[Math.floor(sorted.length/2)]:base;
+    slots.push({time,mm:med,base,prob,wet,total:vals.length,min:sorted.length?sorted[0]:base,max:sorted.length?sorted[sorted.length-1]:base});
+  }
+  if(!slots.length)return;
+  const max=Math.max(.5,...slots.map(x=>x.max));
+  $('#rainBars').innerHTML=slots.map(x=>`<div class="rain-bar ${x.max<.05?'dry':''}" style="height:${x.max<.05?3:Math.max(7,Math.min(100,x.mm/max*100))}%" title="${new Date(x.time).getHours()} Uhr · ${x.mm.toFixed(1)} mm"></div>`).join('');
+  $('#rainAxis').innerHTML=slots.map((x,i)=>`<span>${String(new Date(x.time).getHours()).padStart(2,'0')} Uhr</span>`).join('');
+  const rainy=slots.filter(x=>x.max>=.1), peak=slots.reduce((a,b)=>b.max>a.max?b:a,slots[0]);
+  const allAgree=slots.every(x=>!x.total||x.wet===0||x.wet===x.total);
+  $('#rainNowBadge').className='badge'+(allAgree?'':' medium'); $('#rainNowBadge').textContent=allAgree?'Modelle ähnlich':'Zeit unsicher';
+  if(!rainy.length){$('#rainNowTitle').textContent='In den nächsten 4 Stunden überwiegend trocken';$('#rainNowText').textContent=slots.every(x=>x.total&&x.wet===0)?'Alle 3 Modelle sehen derzeit keinen messbaren Niederschlag.':'Kein Modell zeigt derzeit nennenswerten Niederschlag.';return;}
+  const first=rainy[0], last=rainy[rainy.length-1]; const fh=new Date(first.time).getHours(), lh=new Date(last.time).getHours(), ph=new Date(peak.time).getHours();
+  let intensity=peak.max<.5?'sehr leichter':peak.max<2.5?'leichter':peak.max<7.5?'mäßiger':peak.max<15?'starker':'sehr starker';
+  $('#rainNowTitle').textContent=`${intensity[0].toUpperCase()+intensity.slice(1)} Niederschlag möglich`;
+  $('#rainNowText').textContent=`Regenfenster etwa ${String(fh).padStart(2,'0')}–${String(lh+1).padStart(2,'0')} Uhr · stärkste Stunde um ${String(ph).padStart(2,'0')} Uhr · Modelle dort ${peak.wet}/${peak.total} nass · ${peak.min.toFixed(1)}–${peak.max.toFixed(1)} mm/h.`;
+}
 function renderModelComparison(nowTime){
   const ok=modelData.filter(m=>m.ok);$('#modelCount').textContent=`${ok.length}/${MODEL_DEFS.length}`;
   const cmp=compareAt(nowTime),info=confidenceInfo(cmp.score);$('#confidenceBadge').textContent=info.label;$('#confidenceBadge').className='badge '+info.cls;
@@ -210,6 +235,7 @@ async function loadWeather(p=currentPlace){
     modelData=await modelsPromise;
     renderModelComparison(best.current.time);
     renderMain(best);
+    renderRainNow(best);
   }catch(e){console.error(e);$('#condition').textContent='Keine Verbindung';$('#updated').textContent='Wetterdaten nicht erreichbar';}
 }
 
