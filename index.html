@@ -133,7 +133,7 @@ async function loadWeather(p=currentPlace){
   $('#temp').textContent=Math.round(c.temperature_2m)+'°'; $('#condition').textContent=weatherText(c.weather_code);
   $('#hilow').textContent=`H: ${Math.round(d.daily.temperature_2m_max[0])}° · T: ${Math.round(d.daily.temperature_2m_min[0])}°`;
   $('#feels').textContent=Math.round(c.apparent_temperature)+'°'; $('#wind').textContent=Math.round(c.wind_speed_10m); $('#windDir').textContent=`km/h · ${compass(c.wind_direction_10m)}`; $('#humidity').textContent=Math.round(c.relative_humidity_2m)+'%';
-  const nowIndex=Math.max(0,d.hourly.time.findIndex(t=>t>=c.time)); $('#precip').textContent=(d.hourly.precipitation_probability[nowIndex]??0)+'%'; $('#precipMm').textContent=(d.hourly.precipitation[nowIndex]??0).toFixed(1)+' mm · nächste Stunde';
+  const nowIndex=Math.max(0,d.hourly.time.findIndex(t=>t>=c.time)); const rainProb=d.hourly.precipitation_probability[nowIndex]??0, rainMm=d.hourly.precipitation[nowIndex]??0; $('#precip').textContent=rainProb+'%'; $('#precipMm').textContent=(rainProb===0?'Kein Regen erwartet':rainProb<30?'Regen möglich':rainProb<70?'Regen nicht sicher':'Regen wahrscheinlich')+' · '+rainMm.toFixed(1)+' mm';
   $('#updated').textContent='Aktualisiert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
   let hs=''; for(let i=nowIndex;i<Math.min(nowIndex+24,d.hourly.time.length);i++){const t=new Date(d.hourly.time[i]);hs+=`<div class="hour"><b>${i===nowIndex?'Jetzt':String(t.getHours()).padStart(2,'0')+' Uhr'}</b><div class="ico">${weatherIcon(d.hourly.weather_code[i],d.hourly.is_day[i])}</div><div class="rain">${d.hourly.precipitation_probability[i]?d.hourly.precipitation_probability[i]+'%':''}</div><div class="mm">${d.hourly.precipitation[i]>0?d.hourly.precipitation[i].toFixed(1)+' mm':''}</div><strong>${Math.round(d.hourly.temperature_2m[i])}°</strong></div>`;} $('#hourly').innerHTML=hs;
   const n=weatherNotice(d); $('#noticeCard').style.display=n?'block':'none'; if(n) $('#notice').innerHTML=`<strong>${n[0]}</strong>${n[1]}<br><small>Automatischer Hinweis aus der Vorhersage, keine amtliche Wetterwarnung.</small>`;
@@ -143,7 +143,19 @@ async function loadWeather(p=currentPlace){
 $('#favBtn').onclick=()=>{const i=favorites.findIndex(x=>samePlace(x,currentPlace)); if(i>=0) favorites.splice(i,1); else favorites.push({...currentPlace}); localStorage.setItem('weatherFavorites',JSON.stringify(favorites)); renderFavorites();};
 let timer; $('#searchBtn').onclick=()=>{ $('#search').classList.add('open'); setTimeout(()=>$('#query').focus(),100); }; $('#closeSearch').onclick=()=>$('#search').classList.remove('open');
 $('#query').addEventListener('input',()=>{clearTimeout(timer); const q=$('#query').value.trim(); if(q.length<2){$('#results').innerHTML='';return;} timer=setTimeout(async()=>{const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=8&language=de&format=json'); const j=await r.json(); $('#results').innerHTML=(j.results||[]).map((x,i)=>`<button class="result" data-i="${i}"><b>${x.name}</b><small>${[x.admin1,x.country].filter(Boolean).join(', ')}</small></button>`).join('')||'<div class="loading">Kein Ort gefunden</div>'; [...document.querySelectorAll('.result')].forEach((b,i)=>b.onclick=()=>{const x=j.results[i]; $('#search').classList.remove('open'); $('#query').value=''; $('#results').innerHTML=''; loadWeather({name:x.name,latitude:x.latitude,longitude:x.longitude,timezone:x.timezone,country:x.country});});},250);});
-$('#locBtn').onclick=()=>{if(!navigator.geolocation){alert('Standort wird von diesem Browser nicht unterstützt.');return;} $('#updated').textContent='Standort wird bestimmt …'; navigator.geolocation.getCurrentPosition(async pos=>{let name='Mein Standort'; try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&language=de&format=json`); if(r.ok){const j=await r.json(); const x=(j.results||[])[0]; if(x?.name) name=x.name;}}catch(e){} const p={name,latitude:pos.coords.latitude,longitude:pos.coords.longitude}; loadWeather(p);},()=>{$('#updated').textContent='Standortzugriff nicht erlaubt';},{enableHighAccuracy:true,timeout:10000});};
+async function reverseGeocode(latitude,longitude){
+  try{
+    const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=de`);
+    if(r.ok){
+      const j=await r.json();
+      const city=j.city||j.locality||j.principalSubdivision||'';
+      const country=j.countryName||'';
+      if(city) return {name:[city,country].filter(Boolean).join(', '),country};
+    }
+  }catch(e){console.warn('Reverse-Geocoding fehlgeschlagen',e)}
+  return {name:'Mein Standort',country:''};
+}
+$('#locBtn').onclick=()=>{if(!navigator.geolocation){alert('Standort wird von diesem Browser nicht unterstützt.');return;} $('#updated').textContent='Standort wird bestimmt …'; navigator.geolocation.getCurrentPosition(async pos=>{const place=await reverseGeocode(pos.coords.latitude,pos.coords.longitude); const p={name:place.name,latitude:pos.coords.latitude,longitude:pos.coords.longitude,country:place.country}; loadWeather(p);},()=>{$('#updated').textContent='Standortzugriff nicht erlaubt';},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});};
 loadWeather().catch(e=>{console.error(e);$('#condition').textContent='Keine Verbindung';});
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 </script>
