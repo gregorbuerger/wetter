@@ -58,6 +58,10 @@
     .result:first-child { border-top:0; }
     .result small { display:block; opacity:.64; margin-top:3px; }
     .loading { text-align:center; opacity:.75; padding:30px 0; }
+    .favorites { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:-12px 0 10px; padding:4px 0 8px; }
+    .favorites::-webkit-scrollbar{display:none}.favchip{flex:0 0 auto;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.13);backdrop-filter:blur(16px);color:#fff;border-radius:999px;padding:8px 12px;font:inherit;font-size:13px}.favchip.active{background:rgba(255,255,255,.25)}
+    .notice-text{padding:0 16px 16px;line-height:1.4}.notice-text strong{display:block;font-size:17px;margin-bottom:4px}.notice-text small{opacity:.75}
+    .hour .mm{height:14px;font-size:10px;opacity:.75;color:#fff;margin-top:1px}
     @media (min-width:700px) { .app { padding-left:0; padding-right:0; } }
   </style>
 </head>
@@ -68,14 +72,19 @@
     <div class="topbar">
       <button class="round" id="locBtn" aria-label="Aktueller Standort">⌖</button>
       <div class="place"><strong id="place">Berlin</strong><span id="updated">Wetter wird geladen …</span></div>
+      <button class="round" id="favBtn" aria-label="Favorit speichern">☆</button>
       <button class="round" id="searchBtn" aria-label="Ort suchen">⌕</button>
     </div>
+
+    <div class="favorites" id="favorites"></div>
 
     <section class="hero">
       <div class="temp" id="temp">--°</div>
       <div class="condition" id="condition">Lädt …</div>
       <div class="hilow" id="hilow">H: --° · T: --°</div>
     </section>
+
+    <section class="card notice" id="noticeCard" style="display:none"><div class="card-title">Wetterhinweis</div><div id="notice" class="notice-text"></div></section>
 
     <section class="card">
       <div class="card-title">Stündliche Vorhersage</div>
@@ -91,7 +100,7 @@
       <div class="card stat"><div class="label">Gefühlt</div><div class="value" id="feels">--°</div><small id="feelNote">Aktuell</small></div>
       <div class="card stat"><div class="label">Wind</div><div class="value" id="wind">--</div><small id="windDir">km/h</small></div>
       <div class="card stat"><div class="label">Luftfeuchte</div><div class="value" id="humidity">--%</div><small>Aktuell</small></div>
-      <div class="card stat"><div class="label">Niederschlag</div><div class="value" id="precip">--%</div><small>nächste Stunde</small></div>
+      <div class="card stat"><div class="label">Niederschlag</div><div class="value" id="precip">--%</div><small id="precipMm">-- mm · nächste Stunde</small></div>
     </section>
   </main>
 
@@ -108,27 +117,33 @@ const weatherText=c=>({0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'
 const weatherIcon=(c,isDay=1)=> c===0?(isDay?'☀️':'🌙'):c<=2?(isDay?'🌤️':'☁️'):c===3?'☁️':c<60?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?(c<83?'🌦️':'🌨️'):'⛈️';
 const dayNames=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const compass=d=>['N','NO','O','SO','S','SW','W','NW'][Math.round(d/45)%8];
+let favorites=JSON.parse(localStorage.getItem('weatherFavorites')||'[]');
 let currentPlace=JSON.parse(localStorage.getItem('weatherPlace')||'null')||{name:'Berlin',latitude:52.52,longitude:13.41,timezone:'Europe/Berlin',country:'Deutschland'};
 
+function samePlace(a,b){return Math.abs(a.latitude-b.latitude)<.01&&Math.abs(a.longitude-b.longitude)<.01}
+function renderFavorites(){ $('#favBtn').textContent=favorites.some(x=>samePlace(x,currentPlace))?'★':'☆'; $('#favorites').innerHTML=favorites.map((x,i)=>`<button class="favchip ${samePlace(x,currentPlace)?'active':''}" data-f="${i}">${x.name}</button>`).join(''); document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>loadWeather(favorites[+b.dataset.f])); }
+function weatherNotice(d){let maxRain=Math.max(...d.hourly.precipitation.slice(0,24)), maxProb=Math.max(...d.hourly.precipitation_probability.slice(0,24)), codes=d.hourly.weather_code.slice(0,24), maxWind=d.current.wind_speed_10m; if(codes.some(c=>c>=95)) return ['Gewitter möglich','In den nächsten 24 Stunden zeigt die Vorhersage Gewitter.']; if(maxRain>=10) return ['Stärkerer Regen möglich',`Bis zu ${maxRain.toFixed(1)} mm pro Stunde werden vorhergesagt.`]; if(maxWind>=60) return ['Starker Wind',`Aktuell etwa ${Math.round(maxWind)} km/h.`]; if(maxProb>=80) return ['Regen sehr wahrscheinlich',`Die höchste Regenwahrscheinlichkeit der nächsten 24 Stunden liegt bei ${maxProb} %.`]; return null}
 async function loadWeather(p=currentPlace){
   currentPlace=p; localStorage.setItem('weatherPlace',JSON.stringify(p));
-  $('#place').textContent=p.name;
+  $('#place').textContent=p.name; renderFavorites();
   $('#updated').textContent='Wetter wird geladen …';
-  const params=new URLSearchParams({latitude:p.latitude,longitude:p.longitude,timezone:'auto',forecast_days:'7',current:'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',hourly:'temperature_2m,precipitation_probability,weather_code,is_day',daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'});
+  const params=new URLSearchParams({latitude:p.latitude,longitude:p.longitude,timezone:'auto',forecast_days:'7',current:'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',hourly:'temperature_2m,precipitation_probability,precipitation,weather_code,is_day',daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'});
   const r=await fetch('https://api.open-meteo.com/v1/forecast?'+params); if(!r.ok) throw Error('Wetterdaten konnten nicht geladen werden');
   const d=await r.json(), c=d.current;
   $('#temp').textContent=Math.round(c.temperature_2m)+'°'; $('#condition').textContent=weatherText(c.weather_code);
   $('#hilow').textContent=`H: ${Math.round(d.daily.temperature_2m_max[0])}° · T: ${Math.round(d.daily.temperature_2m_min[0])}°`;
   $('#feels').textContent=Math.round(c.apparent_temperature)+'°'; $('#wind').textContent=Math.round(c.wind_speed_10m); $('#windDir').textContent=`km/h · ${compass(c.wind_direction_10m)}`; $('#humidity').textContent=Math.round(c.relative_humidity_2m)+'%';
-  const nowIndex=Math.max(0,d.hourly.time.findIndex(t=>t>=c.time)); $('#precip').textContent=(d.hourly.precipitation_probability[nowIndex]??0)+'%';
+  const nowIndex=Math.max(0,d.hourly.time.findIndex(t=>t>=c.time)); $('#precip').textContent=(d.hourly.precipitation_probability[nowIndex]??0)+'%'; $('#precipMm').textContent=(d.hourly.precipitation[nowIndex]??0).toFixed(1)+' mm · nächste Stunde';
   $('#updated').textContent='Aktualisiert '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-  let hs=''; for(let i=nowIndex;i<Math.min(nowIndex+24,d.hourly.time.length);i++){const t=new Date(d.hourly.time[i]);hs+=`<div class="hour"><b>${i===nowIndex?'Jetzt':String(t.getHours()).padStart(2,'0')+' Uhr'}</b><div class="ico">${weatherIcon(d.hourly.weather_code[i],d.hourly.is_day[i])}</div><div class="rain">${d.hourly.precipitation_probability[i]?d.hourly.precipitation_probability[i]+'%':''}</div><strong>${Math.round(d.hourly.temperature_2m[i])}°</strong></div>`;} $('#hourly').innerHTML=hs;
+  let hs=''; for(let i=nowIndex;i<Math.min(nowIndex+24,d.hourly.time.length);i++){const t=new Date(d.hourly.time[i]);hs+=`<div class="hour"><b>${i===nowIndex?'Jetzt':String(t.getHours()).padStart(2,'0')+' Uhr'}</b><div class="ico">${weatherIcon(d.hourly.weather_code[i],d.hourly.is_day[i])}</div><div class="rain">${d.hourly.precipitation_probability[i]?d.hourly.precipitation_probability[i]+'%':''}</div><div class="mm">${d.hourly.precipitation[i]>0?d.hourly.precipitation[i].toFixed(1)+' mm':''}</div><strong>${Math.round(d.hourly.temperature_2m[i])}°</strong></div>`;} $('#hourly').innerHTML=hs;
+  const n=weatherNotice(d); $('#noticeCard').style.display=n?'block':'none'; if(n) $('#notice').innerHTML=`<strong>${n[0]}</strong>${n[1]}<br><small>Automatischer Hinweis aus der Vorhersage, keine amtliche Wetterwarnung.</small>`;
   const min=Math.min(...d.daily.temperature_2m_min),max=Math.max(...d.daily.temperature_2m_max); let ds=''; d.daily.time.forEach((x,i)=>{const date=new Date(x+'T12:00:00'); const lo=Math.round(d.daily.temperature_2m_min[i]),hi=Math.round(d.daily.temperature_2m_max[i]); const width=Math.max(14,((hi-lo)/(max-min||1))*100); ds+=`<div class="day"><div>${i===0?'Heute':dayNames[date.getDay()]}</div><div class="ico">${weatherIcon(d.daily.weather_code[i],1)}</div><div>${lo}°&nbsp; ${hi}°</div><div class="range"><i style="width:${width}%"></i></div></div>`;}); $('#days').innerHTML=ds;
 }
 
+$('#favBtn').onclick=()=>{const i=favorites.findIndex(x=>samePlace(x,currentPlace)); if(i>=0) favorites.splice(i,1); else favorites.push({...currentPlace}); localStorage.setItem('weatherFavorites',JSON.stringify(favorites)); renderFavorites();};
 let timer; $('#searchBtn').onclick=()=>{ $('#search').classList.add('open'); setTimeout(()=>$('#query').focus(),100); }; $('#closeSearch').onclick=()=>$('#search').classList.remove('open');
 $('#query').addEventListener('input',()=>{clearTimeout(timer); const q=$('#query').value.trim(); if(q.length<2){$('#results').innerHTML='';return;} timer=setTimeout(async()=>{const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=8&language=de&format=json'); const j=await r.json(); $('#results').innerHTML=(j.results||[]).map((x,i)=>`<button class="result" data-i="${i}"><b>${x.name}</b><small>${[x.admin1,x.country].filter(Boolean).join(', ')}</small></button>`).join('')||'<div class="loading">Kein Ort gefunden</div>'; [...document.querySelectorAll('.result')].forEach((b,i)=>b.onclick=()=>{const x=j.results[i]; $('#search').classList.remove('open'); $('#query').value=''; $('#results').innerHTML=''; loadWeather({name:x.name,latitude:x.latitude,longitude:x.longitude,timezone:x.timezone,country:x.country});});},250);});
-$('#locBtn').onclick=()=>{if(!navigator.geolocation){alert('Standort wird von diesem Browser nicht unterstützt.');return;} $('#updated').textContent='Standort wird bestimmt …'; navigator.geolocation.getCurrentPosition(async pos=>{const p={name:'Mein Standort',latitude:pos.coords.latitude,longitude:pos.coords.longitude}; loadWeather(p);},()=>{$('#updated').textContent='Standortzugriff nicht erlaubt';},{enableHighAccuracy:true,timeout:10000});};
+$('#locBtn').onclick=()=>{if(!navigator.geolocation){alert('Standort wird von diesem Browser nicht unterstützt.');return;} $('#updated').textContent='Standort wird bestimmt …'; navigator.geolocation.getCurrentPosition(async pos=>{let name='Mein Standort'; try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&language=de&format=json`); if(r.ok){const j=await r.json(); const x=(j.results||[])[0]; if(x?.name) name=x.name;}}catch(e){} const p={name,latitude:pos.coords.latitude,longitude:pos.coords.longitude}; loadWeather(p);},()=>{$('#updated').textContent='Standortzugriff nicht erlaubt';},{enableHighAccuracy:true,timeout:10000});};
 loadWeather().catch(e=>{console.error(e);$('#condition').textContent='Keine Verbindung';});
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 </script>
