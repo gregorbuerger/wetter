@@ -78,7 +78,7 @@
 <div class="overlay" id="favOverlay"><div class="sheet"><div class="sheet-head"><h2>Favoriten verwalten</h2><button class="closebtn" data-close="favOverlay">×</button></div><p class="sheet-note">Mit ↑ und ↓ legst du deine eigene Reihenfolge fest. Die Liste wird nur auf diesem Gerät gespeichert.</p><div class="fav-list" id="favList"></div></div></div>
 
 <script>
-const VERSION='0.6';
+const VERSION='0.7';
 const $=s=>document.querySelector(s);
 const weatherText=c=>({0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'Bewölkt',45:'Nebel',48:'Reifnebel',51:'Leichter Nieselregen',53:'Nieselregen',55:'Starker Nieselregen',56:'Gefrierender Nieselregen',57:'Starker gefrierender Nieselregen',61:'Leichter Regen',63:'Regen',65:'Starker Regen',66:'Gefrierender Regen',67:'Starker gefrierender Regen',71:'Leichter Schneefall',73:'Schneefall',75:'Starker Schneefall',77:'Schneegriesel',80:'Leichte Regenschauer',81:'Regenschauer',82:'Starke Regenschauer',85:'Leichte Schneeschauer',86:'Starke Schneeschauer',95:'Gewitter',96:'Gewitter mit Hagel',99:'Starkes Gewitter mit Hagel'}[c]||'Wetter');
 const weatherIcon=(c,isDay=1)=>c===0?(isDay?'☀️':'🌙'):c<=2?(isDay?'🌤️':'☁️'):c===3?'☁️':c<60?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?(c<83?'🌦️':'🌨️'):'⛈️';
@@ -87,7 +87,7 @@ const compass=d=>['N','NO','O','SO','S','SW','W','NW'][Math.round((d||0)/45)%8];
 const MODEL_DEFS=[
   {id:'ecmwf_ifs025',name:'ECMWF IFS'},
   {id:'icon_seamless',name:'DWD ICON'},
-  {id:'gfs_seamless',name:'NOAA GFS'}
+  {id:'ncep_gfs_seamless',name:'NOAA GFS'}
 ];
 let favorites=JSON.parse(localStorage.getItem('weatherFavorites')||'[]');
 let currentPlace=JSON.parse(localStorage.getItem('weatherPlace')||'null')||{name:'Berlin',latitude:52.52,longitude:13.41,country:'Deutschland'};
@@ -132,11 +132,22 @@ async function fetchBestMatch(p){
   const params=new URLSearchParams({latitude:p.latitude,longitude:p.longitude,timezone:'auto',forecast_days:'7',current:'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day',hourly:'temperature_2m,precipitation_probability,precipitation,weather_code,is_day',daily:'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum'});
   const r=await fetch('https://api.open-meteo.com/v1/forecast?'+params,{cache:'no-store'});if(!r.ok)throw Error('Wetterdaten konnten nicht geladen werden');return r.json();
 }
-async function fetchOneModel(p,m){
-  const params=new URLSearchParams({latitude:p.latitude,longitude:p.longitude,timezone:'auto',forecast_days:'3',models:m.id,hourly:'temperature_2m,precipitation,weather_code'});
-  try{const r=await fetch('https://api.open-meteo.com/v1/forecast?'+params,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();return{...m,data:d,ok:true};}catch(e){console.warn('Modell fehlgeschlagen',m.id,e);return{...m,ok:false,error:String(e)}}
+async function fetchModels(p){
+  const params=new URLSearchParams({latitude:p.latitude,longitude:p.longitude,timezone:'auto',forecast_days:'3',models:MODEL_DEFS.map(m=>m.id).join(','),hourly:'temperature_2m,precipitation,precipitation_probability,weather_code'});
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?'+params,{cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const d=await r.json(),h=d.hourly||{};
+    return MODEL_DEFS.map(m=>{
+      const suffix='_'+m.id;
+      const data={hourly:{time:h.time||[],temperature_2m:h['temperature_2m'+suffix],precipitation:h['precipitation'+suffix],precipitation_probability:h['precipitation_probability'+suffix],weather_code:h['weather_code'+suffix]}};
+      const ok=Array.isArray(data.hourly.time)&&Array.isArray(data.hourly.temperature_2m)&&Array.isArray(data.hourly.precipitation)&&Array.isArray(data.hourly.weather_code);
+      return {...m,data,ok,error:ok?'':'Modellwerte fehlen'};
+    });
+  }catch(e){console.warn('Modellvergleich fehlgeschlagen',e);return MODEL_DEFS.map(m=>({...m,ok:false,error:String(e)}));}
 }
-function modelValue(model,time,key){if(!model?.ok)return null;const i=model.data.hourly.time.indexOf(time);if(i<0)return null;const v=model.data.hourly[key]?.[i];return Number.isFinite(v)?v:null;}
+function modelIndex(model,time){if(!model?.ok)return-1;const times=model.data.hourly.time||[];let i=times.indexOf(time);if(i>=0)return i;const target=new Date(time).getTime();let best=-1,dist=Infinity;for(let n=0;n<times.length;n++){const x=new Date(times[n]).getTime(),d=Math.abs(x-target);if(Number.isFinite(x)&&d<dist){dist=d;best=n}}return dist<=31*60*1000?best:-1;}
+function modelValue(model,time,key){const i=modelIndex(model,time);if(i<0)return null;const v=model.data.hourly[key]?.[i];return Number.isFinite(v)?v:null;}
 function compareAt(time){
   const vals=modelData.filter(m=>m.ok).map(m=>({m,temp:modelValue(m,time,'temperature_2m'),prec:modelValue(m,time,'precipitation'),code:modelValue(m,time,'weather_code')})).filter(x=>x.temp!==null||x.prec!==null||x.code!==null);
   if(vals.length<2)return{score:null,count:vals.length,rainCount:vals.filter(x=>(x.prec||0)>=.1).length,total:vals.length};
@@ -156,7 +167,7 @@ function renderModelComparison(nowTime){
   const cmp=compareAt(nowTime),info=confidenceInfo(cmp.score);$('#confidenceBadge').textContent=info.label;$('#confidenceBadge').className='badge '+info.cls;
   if(cmp.score===null){$('#confidenceText').textContent=ok.length<2?'Zu wenige Modelle verfügbar':'Keine Vergleichsdaten für diese Stunde';}
   else{$('#confidenceText').textContent=`${cmp.count} Modelle · ${cmp.rainCount}/${cmp.total} sehen messbaren Niederschlag`}
-  $('#modelRows').innerHTML=modelData.map(m=>{if(!m.ok)return`<div class="model-row"><div><div class="model-name">${m.name}</div><small>Nicht verfügbar</small></div><div></div><div class="model-error">–</div></div>`;const temp=modelValue(m,nowTime,'temperature_2m'),prec=modelValue(m,nowTime,'precipitation'),code=modelValue(m,nowTime,'weather_code');return`<div class="model-row"><div><div class="model-name">${m.name}</div><small>${weatherText(code)}</small></div><div class="model-rain">${prec===null?'–':prec.toFixed(1)+' mm'}</div><div class="model-temp">${temp===null?'–':Math.round(temp)+'°'}</div></div>`}).join('');
+  $('#modelRows').innerHTML=modelData.map(m=>{if(!m.ok)return`<div class="model-row"><div><div class="model-name">${m.name}</div><small>Nicht verfügbar</small></div><div></div><div class="model-error">–</div></div>`;const temp=modelValue(m,nowTime,'temperature_2m'),prec=modelValue(m,nowTime,'precipitation'),prob=modelValue(m,nowTime,'precipitation_probability'),code=modelValue(m,nowTime,'weather_code');return`<div class="model-row"><div><div class="model-name">${m.name}</div><small>${weatherText(code)}</small></div><div class="model-rain">${prob===null?'':Math.round(prob)+'% · '}${prec===null?'–':prec.toFixed(1)+' mm'}</div><div class="model-temp">${temp===null?'–':Math.round(temp)+'°'}</div></div>`}).join('');
 }
 function renderMain(d){
   mainData=d;const c=d.current;$('#temp').textContent=Math.round(c.temperature_2m)+'°';$('#condition').textContent=weatherText(c.weather_code);$('#heroIcon').textContent=weatherIcon(c.weather_code,c.is_day);$('#high').textContent=Math.round(d.daily.temperature_2m_max[0])+'°';$('#low').textContent=Math.round(d.daily.temperature_2m_min[0])+'°';
@@ -171,10 +182,10 @@ async function loadWeather(p=currentPlace){
   currentPlace=p;localStorage.setItem('weatherPlace',JSON.stringify(p));$('#place').textContent=p.name;$('#updated').textContent='Wetter wird geladen …';renderPlaceMenu();
   $('#confidenceBadge').textContent='…';$('#confidenceText').textContent='Modelle werden verglichen …';$('#modelRows').innerHTML='<div class="empty">Modelle werden geladen …</div>';$('#modelCount').textContent='0/3';modelData=[];modelScores=[];
   try{
-    const modelPromises=MODEL_DEFS.map(m=>fetchOneModel(p,m));
+    const modelsPromise=fetchModels(p);
     const best=await fetchBestMatch(p);
     renderMain(best);
-    modelData=await Promise.all(modelPromises);
+    modelData=await modelsPromise;
     renderModelComparison(best.current.time);
     renderMain(best);
   }catch(e){console.error(e);$('#condition').textContent='Keine Verbindung';$('#updated').textContent='Wetterdaten nicht erreichbar';}
