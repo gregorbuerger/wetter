@@ -55,7 +55,7 @@
     </div>
     <button class="iconbtn" id="refreshBtn" aria-label="Wetter aktualisieren" title="Wetter aktualisieren">↻</button>
   </div>
-  <div class="version">Version 2.7</div>
+  <div class="version">Version 2.8</div>
 
   <section class="hero">
     <div class="hero-top"><div><div class="hero-temp" id="temp">--°</div><div class="condition" id="condition">Lädt …</div></div><div class="hero-icon" id="heroIcon">◌</div></div>
@@ -87,7 +87,7 @@
 <div class="overlay" id="favOverlay"><div class="sheet"><div class="sheet-head"><h2>Favoriten verwalten</h2><button class="closebtn" data-close="favOverlay">×</button></div><p class="sheet-note">Mit ↑ und ↓ legst du deine eigene Reihenfolge fest. Die Liste wird nur auf diesem Gerät gespeichert.</p><div class="fav-list" id="favList"></div></div></div>
 
 <script>
-const VERSION='2.7';
+const VERSION='2.8';
 const $=s=>document.querySelector(s);
 const weatherText=c=>({0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'Bewölkt',45:'Nebel',48:'Reifnebel',51:'Leichter Nieselregen',53:'Nieselregen',55:'Starker Nieselregen',56:'Gefrierender Nieselregen',57:'Starker gefrierender Nieselregen',61:'Leichter Regen',63:'Regen',65:'Starker Regen',66:'Gefrierender Regen',67:'Starker gefrierender Regen',71:'Leichter Schneefall',73:'Schneefall',75:'Starker Schneefall',77:'Schneegriesel',80:'Leichte Regenschauer',81:'Regenschauer',82:'Starke Regenschauer',85:'Leichte Schneeschauer',86:'Starke Schneeschauer',95:'Gewitter',96:'Gewitter mit Hagel',99:'Starkes Gewitter mit Hagel'}[c]||'Wetter');
 const weatherIcon=(c,isDay=1)=>c===0?(isDay?'☀️':'🌙'):c<=2?(isDay?'🌤️':'☁️'):c===3?'☁️':c<60?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?(c<83?'🌦️':'🌨️'):'⛈️';
@@ -170,11 +170,13 @@ function renderStormStatus(d){
   const maxLpi=rows.length?Math.max(0,...rows.map(x=>x.lpi||0)):0;
   const soonThunder=shortThunder||maxLpi>0;
   const modelThunder=modelData.filter(x=>x.ok).reduce((n,x)=>{const code=modelValue(x,nowTime,'weather_code');return n+(code!==null&&code>=95?1:0)},0);
-  const box=$('#stormStatus'),badge=$('#stormBadge'),title=$('#stormTitle'),text=$('#stormText'),meta=$('#stormMeta');
-  box.className='storm-status '+(currentThunder?'active':soonThunder?'watch':'quiet');
-  if(currentThunder){title.textContent='⛈️ Gewitter aktuell in den Wetterdaten';badge.textContent='Aktuell';badge.className='badge danger';text.textContent='Der aktuelle Wettercode meldet am Standort ein Gewitter. Bei bereits hörbarem Donner haben aktuelle Beobachtungen Vorrang vor älteren Modellzeiten.';}
-  else if(soonThunder){title.textContent='⛈️ Gewitter in der Kurzfristprognose';badge.textContent='Kurzfrist';badge.className='badge medium';text.textContent='Die 15-Minuten-Prognose zeigt Gewitter- bzw. Blitzpotential in den nächsten zwei Stunden. Das ist eine Modell-Erkennung, noch keine bestätigte Live-Blitzmessung.';}
-  else{title.textContent='Kein Gewitter direkt erkannt';badge.textContent='Ruhig';badge.className='badge';text.textContent='Aktueller Wettercode und Kurzfristprognose zeigen derzeit kein direktes Gewittersignal. Spontane Gewitterentwicklung bleibt trotzdem möglich.';}
+  const section=$('#stormSection'),box=$('#stormStatus'),badge=$('#stormBadge'),title=$('#stormTitle'),text=$('#stormText'),meta=$('#stormMeta');
+  // Der Gewitterbereich ist ereignisbezogen: bei ruhiger Lage verschwindet er komplett.
+  section.style.display=(currentThunder||soonThunder)?'':'none';
+  if(!currentThunder&&!soonThunder){return;}
+  box.className='storm-status '+(currentThunder?'active':'watch');
+  if(currentThunder){title.textContent='⛈️ Gewitter aktuell';badge.textContent='Aktuell';badge.className='badge danger';text.textContent='Die aktuellen Wetterdaten zeigen ein Gewitter am Standort.';}
+  else{title.textContent='⛈️ Gewitter möglich';badge.textContent='Nähert sich';badge.className='badge medium';text.textContent='Die Kurzfristprognose zeigt in den nächsten zwei Stunden ein mögliches Gewitter. Zeitpunkt und genaue Entwicklung können sich noch ändern.';}
   const region=regionFor(currentPlace);const source=region==='de'?'Deutschland: ICON-D2 / Open-Meteo':region==='hr'?'Kroatien: Kurzfristmodell / Open-Meteo':'Open-Meteo Kurzfrist';
   const bits=[source,`Modelle jetzt: ${modelThunder}/${modelData.filter(x=>x.ok).length||3} Gewitter`];
   if(maxLpi>0)bits.push(`Blitzpotential LPI: ${maxLpi.toFixed(1)}`);
