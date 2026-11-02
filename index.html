@@ -55,7 +55,7 @@
     </div>
     <button class="iconbtn" id="refreshBtn" aria-label="Wetter aktualisieren" title="Wetter aktualisieren">↻</button>
   </div>
-  <div class="version">Version 5.2 · <button id="updateBtn" class="version-update current" type="button">Prüfe …</button></div>
+  <div class="version">Version 5.3 · <button id="updateBtn" class="version-update current" type="button">Prüfe …</button></div>
 
   <section class="hero">
     <div class="hero-top"><div><div class="hero-temp" id="temp">--°</div><div class="condition" id="condition">Lädt …</div></div><div class="hero-icon" id="heroIcon">◌</div></div>
@@ -87,7 +87,7 @@
 <div class="overlay" id="favOverlay"><div class="sheet"><div class="sheet-head"><h2>Favoriten verwalten</h2><button class="closebtn" data-close="favOverlay">×</button></div><p class="sheet-note">Mit ↑ und ↓ legst du deine eigene Reihenfolge fest. Die Liste wird nur auf diesem Gerät gespeichert.</p><div class="fav-list" id="favList"></div></div></div>
 
 <script>
-const VERSION='5.2';
+const VERSION='5.3';
 const $=s=>document.querySelector(s);
 const weatherText=c=>({0:'Klar',1:'Überwiegend klar',2:'Teilweise bewölkt',3:'Bewölkt',45:'Nebel',48:'Reifnebel',51:'Leichter Nieselregen',53:'Nieselregen',55:'Starker Nieselregen',56:'Gefrierender Nieselregen',57:'Starker gefrierender Nieselregen',61:'Leichter Regen',63:'Regen',65:'Starker Regen',66:'Gefrierender Regen',67:'Starker gefrierender Regen',71:'Leichter Schneefall',73:'Schneefall',75:'Starker Schneefall',77:'Schneegriesel',80:'Leichte Regenschauer',81:'Regenschauer',82:'Starke Regenschauer',85:'Leichte Schneeschauer',86:'Starke Schneeschauer',95:'Gewitter',96:'Gewitter mit Hagel',99:'Starkes Gewitter mit Hagel'}[c]||'Wetter');
 const weatherIcon=(c,isDay=1)=>c===0?(isDay?'☀️':'🌙'):c<=2?(isDay?'🌤️':'☁️'):c===3?'☁️':c<60?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?(c<83?'🌦️':'🌨️'):'⛈️';
@@ -402,6 +402,12 @@ function renderMain(d){
     }
     if(!rainLabel){if([95,96,99].includes(code))rainLabel='Gewitter möglich';else if(mm<.05&&cmp.total&&cmp.rainCount===0)rainLabel='Trocken erwartet';else if(mm<.05&&cmp.total&&cmp.rainCount===1)rainLabel='Einzelne Tropfen möglich';else if(mm<.05&&cmp.total&&cmp.rainCount>=2)rainLabel='Nieselregen möglich';else if(mm<.05&&prob>=50)rainLabel='Nieselregen möglich';else if(mm<.05)rainLabel='Trocken erwartet';else if(mm<.5)rainLabel='Sehr leichter Regen';else if(mm<2.5)rainLabel='Leichter Regen';else if(mm<7.5)rainLabel='Mäßiger Regen';else if(mm<15)rainLabel='Starker Regen';else rainLabel='Sehr starker Regen';}
     const stHour=shortTermForHour(d.hourly.time[i]);if(!isNow&&mm<.05&&stHour?.sum>=.05)rainLabel=stHour.max>=.5?'Später Regen möglich':'Später leichter Regen möglich';
+    if(!isNow){
+      const shortTermWet=stHour?.sum>=.05;
+      const modelWet=cmp.total&&cmp.rainCount>0;
+      const hourWet=mm>=.05||prob>0||modelWet||shortTermWet;
+      if(!hourWet&&code>=51)icon=weatherIcon(3,d.hourly.is_day[i]);
+    }
     const meta=[`${Math.round(prob)} %`,amount].filter(Boolean).join(' · '),modelShort=cmp.total?`${cmp.rainCount}/${cmp.total} Modelle`:'Modelle …';
     let nowHint='';if(isNow&&radarData?.ok&&radarData.dbz===null&&cmp.rainCount>0)nowHint='<div class="hour-models">Schauer in dieser Stunde möglich</div>';
     hs+=`<div class="hour"><b>${isNow?'Jetzt':String(t.getHours()).padStart(2,'0')+' Uhr'}</b><div class="ico">${icon}</div><div class="t">${Math.round(d.hourly.temperature_2m[i])}°</div><div class="agree"><strong>${rainLabel}</strong><div class="hour-meta">${meta}</div>${nowHint}<div class="hour-models">${modelShort}</div></div></div>`;
